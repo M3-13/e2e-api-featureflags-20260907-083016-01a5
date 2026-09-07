@@ -125,12 +125,12 @@ func TestLoggingRecordsErrorStatus(t *testing.T) {
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusNotImplemented {
-		t.Fatalf("expected 501, got %d", rec.Code)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", rec.Code)
 	}
 	out := buf.String()
-	if !strings.Contains(out, "POST /flags 501 ") {
-		t.Fatalf("log did not record the 501 status for POST /flags: %q", out)
+	if !strings.Contains(out, "POST /flags 400 ") {
+		t.Fatalf("log did not record the 400 status for POST /flags: %q", out)
 	}
 	if strings.Contains(out, "POST /flags 200 ") {
 		t.Fatalf("log recorded 200 for an error response: %q", out)
