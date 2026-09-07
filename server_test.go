@@ -112,3 +112,69 @@ func TestLoggingOmitsQueryString(t *testing.T) {
 		t.Fatalf("log leaked the query string: %s", out)
 	}
 }
+
+func TestLoggingRecordsErrorStatus(t *testing.T) {
+	var buf bytes.Buffer
+	old := log.Writer()
+	log.SetOutput(&buf)
+	defer log.SetOutput(old)
+
+	handler := newHandler()
+	req := httptest.NewRequest(http.MethodPost, "/flags", strings.NewReader(`{"key":"x"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotImplemented {
+		t.Fatalf("expected 501, got %d", rec.Code)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "POST /flags 501 ") {
+		t.Fatalf("log did not record the 501 status for POST /flags: %q", out)
+	}
+	if strings.Contains(out, "POST /flags 200 ") {
+		t.Fatalf("log recorded 200 for an error response: %q", out)
+	}
+}
+
+func TestNotFoundReturnsJSON(t *testing.T) {
+	handler := newHandler()
+	req := httptest.NewRequest(http.MethodGet, "/nonexistent", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", rec.Code)
+	}
+	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
+		t.Fatalf("expected application/json content type, got %q", ct)
+	}
+	var body map[string]string
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("404 body is not JSON: %v", err)
+	}
+	if body["error"] == "" {
+		t.Fatalf("404 body missing error field: %s", rec.Body.String())
+	}
+}
+
+func TestMethodNotAllowedReturnsJSON(t *testing.T) {
+	handler := newHandler()
+	req := httptest.NewRequest(http.MethodPost, "/healthz", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("expected 405, got %d", rec.Code)
+	}
+	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
+		t.Fatalf("expected application/json content type, got %q", ct)
+	}
+	var body map[string]string
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("405 body is not JSON: %v", err)
+	}
+	if body["error"] == "" {
+		t.Fatalf("405 body missing error field: %s", rec.Body.String())
+	}
+}

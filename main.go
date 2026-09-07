@@ -39,5 +39,35 @@ func newHandler() http.Handler {
 	mux.HandleFunc("PUT /flags/{key}", handleUpdateFlag)
 	mux.HandleFunc("DELETE /flags/{key}", handleDeleteFlag)
 	mux.HandleFunc("GET /flags/{key}/evaluate", handleEvaluateFlag)
-	return loggingMiddleware(recoveryMiddleware(mux))
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h, pattern := mux.Handler(r)
+		if pattern != "" {
+			h.ServeHTTP(w, r)
+			return
+		}
+		if hasRouteForPath(mux, r) {
+			writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+			return
+		}
+		writeError(w, http.StatusNotFound, "not found")
+	})
+
+	return loggingMiddleware(recoveryMiddleware(handler))
+}
+
+var routeMethods = []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete}
+
+func hasRouteForPath(mux *http.ServeMux, r *http.Request) bool {
+	probe := r.Clone(r.Context())
+	for _, m := range routeMethods {
+		if m == r.Method {
+			continue
+		}
+		probe.Method = m
+		if _, pattern := mux.Handler(probe); pattern != "" {
+			return true
+		}
+	}
+	return false
 }

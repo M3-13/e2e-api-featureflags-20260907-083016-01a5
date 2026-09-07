@@ -23,7 +23,7 @@ func (r *statusRecorder) WriteHeader(code int) {
 }
 
 func (r *statusRecorder) Write(b []byte) (int, error) {
-	if r.status != 0 {
+	if r.status == 0 {
 		r.status = http.StatusOK
 	}
 	return r.ResponseWriter.Write(b)
