@@ -41,9 +41,9 @@ func newHandler() http.Handler {
 	mux.HandleFunc("GET /flags/{key}/evaluate", handleEvaluateFlag)
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		h, pattern := mux.Handler(r)
+		_, pattern := mux.Handler(r)
 		if pattern != "" {
-			h.ServeHTTP(w, r)
+			mux.ServeHTTP(w, r)
 			return
 		}
 		if hasRouteForPath(mux, r) {
